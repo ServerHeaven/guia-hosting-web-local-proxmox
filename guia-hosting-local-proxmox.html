@@ -1,0 +1,1128 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Guía: Hostear webs HTML en Proxmox LXC</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Sora:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #070a0d;
+  --bg-surface: #0c1117;
+  --bg-card: #111820;
+  --bg-card-hover: #151d27;
+  --bg-code: #080c12;
+  --border: #1a2332;
+  --border-active: #243344;
+  --text: #d4dce8;
+  --text-dim: #7e8fa3;
+  --text-muted: #4a5a6d;
+  --green: #22c55e;
+  --green-dim: rgba(34,197,94,.12);
+  --green-glow: rgba(34,197,94,.25);
+  --cyan: #06b6d4;
+  --cyan-dim: rgba(6,182,212,.1);
+  --yellow: #eab308;
+  --yellow-dim: rgba(234,179,8,.1);
+  --red: #ef4444;
+  --red-dim: rgba(239,68,68,.1);
+  --orange: #f97316;
+  --blue: #3b82f6;
+  --radius: 10px;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior: smooth; font-size: 16px; }
+
+body {
+  font-family: 'Sora', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.75;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── SCANLINES ── */
+body::after {
+  content:'';
+  position:fixed; inset:0; z-index:9999; pointer-events:none;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,.03) 2px,
+    rgba(0,0,0,.03) 4px
+  );
+}
+
+/* ── HERO ── */
+.hero {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 2rem;
+  overflow: hidden;
+}
+
+.hero-grid {
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(var(--border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 60px 60px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 50%, black 30%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 50%, black 30%, transparent 100%);
+  opacity: .4;
+}
+
+.hero-glow {
+  position: absolute;
+  width: 600px; height: 600px;
+  border-radius: 50%;
+  filter: blur(120px);
+  opacity: .3;
+  animation: drift 15s ease-in-out infinite alternate;
+}
+.hero-glow-1 { background: var(--green); top: -200px; left: -100px; }
+.hero-glow-2 { background: var(--cyan); bottom: -200px; right: -100px; animation-direction: alternate-reverse; }
+
+@keyframes drift {
+  from { transform: translate(0,0) scale(1); }
+  to { transform: translate(40px,-30px) scale(1.15); }
+}
+
+.hero-content { position: relative; z-index: 2; max-width: 850px; }
+
+.hero-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: .78rem;
+  color: var(--green);
+  background: var(--green-dim);
+  border: 1px solid rgba(34,197,94,.25);
+  border-radius: 50px;
+  padding: 6px 18px;
+  letter-spacing: .06em;
+  margin-bottom: 2rem;
+  animation: fadeUp .7s ease both;
+}
+.hero-tag .blink { animation: blink 1.2s step-end infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+.hero h1 {
+  font-size: clamp(2.6rem,6.5vw,5rem);
+  font-weight: 800;
+  line-height: 1.08;
+  letter-spacing: -.04em;
+  animation: fadeUp .7s ease .1s both;
+}
+.hero h1 .hl {
+  background: linear-gradient(135deg, var(--green), var(--cyan));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.hero-sub {
+  font-size: 1.15rem;
+  color: var(--text-dim);
+  max-width: 620px;
+  margin: 1.5rem auto 2.5rem;
+  font-weight: 300;
+  animation: fadeUp .7s ease .2s both;
+}
+
+.hero-pills {
+  display: flex;
+  justify-content: center;
+  gap: .75rem;
+  flex-wrap: wrap;
+  animation: fadeUp .7s ease .35s both;
+}
+.pill {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: .72rem;
+  padding: 5px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-dim);
+  letter-spacing: .03em;
+}
+.pill b { color: var(--text); font-weight: 600; }
+
+@keyframes fadeUp {
+  from { opacity:0; transform:translateY(24px); }
+  to { opacity:1; transform:translateY(0); }
+}
+
+.scroll-ind {
+  position: absolute;
+  bottom: 2.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  width: 20px; height: 32px;
+  border: 2px solid var(--text-muted);
+  border-radius: 12px;
+  animation: fadeUp .7s ease .5s both;
+}
+.scroll-ind::after {
+  content:'';
+  position: absolute;
+  top: 6px; left: 50%;
+  transform: translateX(-50%);
+  width: 3px; height: 6px;
+  background: var(--green);
+  border-radius: 3px;
+  animation: scrollDot 2s ease-in-out infinite;
+}
+@keyframes scrollDot {
+  0%,100% { transform: translateX(-50%) translateY(0); opacity:1; }
+  100% { transform: translateX(-50%) translateY(12px); opacity:0; }
+}
+
+/* ── NAV ── */
+.nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(7,10,13,.88);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.nav::-webkit-scrollbar { display:none; }
+.nav-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 0 1rem;
+}
+.nav-brand {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: .85rem;
+  color: var(--green);
+  margin-right: 1.5rem;
+  white-space: nowrap;
+  padding: .85rem 0;
+  font-weight: 600;
+}
+.nav a {
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: .75rem;
+  font-weight: 500;
+  padding: .85rem .75rem;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  transition: all .25s;
+}
+.nav a:hover { color: var(--green); border-bottom-color: var(--green); }
+
+/* ── MAIN ── */
+.main { max-width: 880px; margin: 0 auto; padding: 3rem 1.5rem 6rem; }
+
+/* ── SECTIONS ── */
+.sec { margin-bottom: 5rem; }
+.sec-num {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: .7rem;
+  font-weight: 600;
+  color: var(--green);
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  margin-bottom: .5rem;
+}
+.sec h2 {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -.025em;
+  margin-bottom: .75rem;
+  line-height: 1.2;
+}
+.sec > p { color: var(--text-dim); margin-bottom: 1.5rem; font-size: 1.02rem; }
+.sec h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 2.5rem 0 .75rem;
+  padding-left: 1rem;
+  border-left: 3px solid var(--green);
+  color: var(--text);
+}
+.sec h4 {
+  font-size: .85rem;
+  font-weight: 600;
+  color: var(--cyan);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  margin: 2rem 0 .75rem;
+}
+.sec p { color: var(--text-dim); margin-bottom: .75rem; }
+.sec ul, .sec ol { color: var(--text-dim); padding-left: 1.5rem; margin-bottom: 1rem; }
+.sec li { margin-bottom: .35rem; }
+.sec a { color: var(--green); text-decoration: none; border-bottom: 1px dashed rgba(34,197,94,.3); transition: border-color .2s; }
+.sec a:hover { border-bottom-color: var(--green); }
+
+/* ── CODE ── */
+pre {
+  background: var(--bg-code);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.5rem;
+  overflow-x: auto;
+  margin: .75rem 0 1.25rem;
+  position: relative;
+}
+pre::before {
+  content: attr(data-file);
+  position: absolute;
+  top: .5rem; right: .75rem;
+  font-size: .6rem;
+  color: var(--text-muted);
+  font-family: 'IBM Plex Mono', monospace;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  background: var(--bg-card);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+code {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: .84rem;
+  line-height: 1.75;
+  color: var(--text);
+}
+p code, li code {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  padding: 1px 6px;
+  border-radius: 5px;
+  font-size: .8rem;
+  color: var(--cyan);
+}
+
+/* syntax */
+.cm { color: var(--text-muted); font-style: italic; }
+.cmd { color: var(--green); }
+.fl { color: var(--yellow); }
+.str { color: #8bd49c; }
+.vr { color: var(--cyan); }
+.kw { color: var(--orange); }
+.num { color: var(--yellow); }
+
+/* ── CALLOUTS ── */
+.callout {
+  display: flex;
+  gap: 1rem;
+  padding: 1.15rem 1.4rem;
+  border-radius: var(--radius);
+  margin: 1.25rem 0;
+  border: 1px solid;
+  align-items: flex-start;
+}
+.callout-icon { font-size: 1.3rem; flex-shrink: 0; }
+.callout p { margin: 0; font-size: .9rem; }
+.callout-green { background: var(--green-dim); border-color: rgba(34,197,94,.2); }
+.callout-yellow { background: var(--yellow-dim); border-color: rgba(234,179,8,.2); }
+.callout-red { background: var(--red-dim); border-color: rgba(239,68,68,.2); }
+.callout-blue { background: var(--cyan-dim); border-color: rgba(6,182,212,.2); }
+
+/* ── CARDS ── */
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); gap: .75rem; margin: 1.5rem 0; }
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.4rem;
+  transition: all .25s;
+}
+.card:hover { border-color: var(--border-active); background: var(--bg-card-hover); transform: translateY(-2px); }
+.card-em { font-size: 1.5rem; margin-bottom: .6rem; }
+.card h4 { font-size: .95rem; font-weight: 600; color: var(--text); margin: 0 0 .4rem; text-transform: none; letter-spacing: 0; }
+.card p { font-size: .82rem; color: var(--text-muted); margin: 0; }
+
+/* ── TABLE ── */
+.tbl-wrap { overflow-x: auto; margin: 1.25rem 0; border-radius: var(--radius); border: 1px solid var(--border); }
+table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+th {
+  background: var(--bg-card);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-size: .7rem;
+  letter-spacing: .1em;
+  padding: .7rem 1.1rem;
+  text-align: left;
+  font-weight: 600;
+}
+td { padding: .65rem 1.1rem; border-top: 1px solid var(--border); color: var(--text-dim); }
+tr:hover td { background: rgba(255,255,255,.015); }
+
+/* ── STEPS ── */
+.step {
+  display: flex;
+  gap: 1rem;
+  margin: 1.25rem 0;
+  align-items: flex-start;
+}
+.step-n {
+  flex-shrink: 0;
+  width: 32px; height: 32px;
+  background: var(--green);
+  color: var(--bg);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: .8rem;
+  margin-top: 2px;
+}
+.step-body h4 { color: var(--text); margin: 0 0 .3rem; text-transform: none; letter-spacing: 0; }
+.step-body p { font-size: .9rem; margin: 0; }
+
+/* ── DIVIDER ── */
+hr.div {
+  border: none;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--border-active), transparent);
+  margin: 4rem 0;
+}
+
+/* ── FOOTER ── */
+.footer {
+  text-align: center;
+  padding: 3rem 1.5rem;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: .8rem;
+}
+.footer a { color: var(--green); text-decoration: none; }
+
+/* ── RESPONSIVE ── */
+@media (max-width:640px) {
+  .hero h1 { font-size: 2.2rem; }
+  .sec h2 { font-size: 1.5rem; }
+  pre { padding: 1rem; }
+  code { font-size: .78rem; }
+  .nav-brand { display: none; }
+  .cards { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ HERO ═══ -->
+<section class="hero">
+  <div class="hero-grid"></div>
+  <div class="hero-glow hero-glow-1"></div>
+  <div class="hero-glow hero-glow-2"></div>
+  <div class="hero-content">
+    <div class="hero-tag">$ nginx -s reload<span class="blink">_</span></div>
+    <h1>Hostea tus webs HTML<br>en <span class="hl">Proxmox LXC</span></h1>
+    <p class="hero-sub">Guía completa para servir sitios estáticos desde un contenedor Linux ligero en tu red local. Sin cloud, sin costes, rendimiento instantáneo.</p>
+    <div class="hero-pills">
+      <span class="pill"><b>Nginx</b> web server</span>
+      <span class="pill"><b>LXC</b> contenedor</span>
+      <span class="pill"><b>Proxmox</b> VE 8.x</span>
+      <span class="pill"><b>HTTP</b> / HTTPS local</span>
+      <span class="pill"><b>Multi-sitio</b></span>
+    </div>
+  </div>
+  <div class="scroll-ind"></div>
+</section>
+
+<!-- ═══ NAV ═══ -->
+<nav class="nav">
+  <div class="nav-inner">
+    <span class="nav-brand">~/guía</span>
+    <a href="#intro">Intro</a>
+    <a href="#requisitos">Requisitos</a>
+    <a href="#lxc">Crear LXC</a>
+    <a href="#nginx">Instalar Nginx</a>
+    <a href="#deploy">Subir web</a>
+    <a href="#vhosts">Multi-sitio</a>
+    <a href="#dominio">Dominio local</a>
+    <a href="#ssl">HTTPS local</a>
+    <a href="#autodeploy">Auto-deploy</a>
+    <a href="#seguridad">Seguridad</a>
+    <a href="#troubleshooting">Problemas</a>
+  </div>
+</nav>
+
+<!-- ═══ CONTENT ═══ -->
+<div class="main">
+
+  <!-- ── 01 INTRO ── -->
+  <section class="sec" id="intro">
+    <div class="sec-num">01 · Introducción</div>
+    <h2>¿Por qué hostear localmente en Proxmox?</h2>
+    <p>Si ya tienes un servidor Proxmox en casa, puedes servir webs estáticas (HTML/CSS/JS) desde un contenedor LXC usando apenas ~64 MB de RAM y ~1 GB de disco. Es perfecto para dashboards, documentación, guías, portafolios internos o cualquier sitio que no necesite salir a internet.</p>
+
+    <div class="cards">
+      <div class="card">
+        <div class="card-em">⚡</div>
+        <h4>Ultra ligero</h4>
+        <p>Un LXC con Nginx usa ~50-80 MB de RAM. Puedes tener decenas corriendo sin despeinarte.</p>
+      </div>
+      <div class="card">
+        <div class="card-em">🔒</div>
+        <h4>Privado</h4>
+        <p>Todo queda en tu red local. Sin DNS público, sin exposición, sin riesgos innecesarios.</p>
+      </div>
+      <div class="card">
+        <div class="card-em">🚀</div>
+        <h4>Instantáneo</h4>
+        <p>Latencia de red local (<1ms). Las páginas cargan al instante desde cualquier dispositivo de tu casa.</p>
+      </div>
+      <div class="card">
+        <div class="card-em">♾️</div>
+        <h4>Sin límites</h4>
+        <p>Sin cuotas de ancho de banda, sin builds por hora, sin restricciones de tamaño. Tu servidor, tus reglas.</p>
+      </div>
+    </div>
+  </section>
+
+  <hr class="div">
+
+  <!-- ── 02 REQUISITOS ── -->
+  <section class="sec" id="requisitos">
+    <div class="sec-num">02 · Requisitos</div>
+    <h2>Lo que necesitas</h2>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Componente</th><th>Mínimo</th><th>Recomendado</th></tr></thead>
+        <tbody>
+          <tr><td>Proxmox VE</td><td>7.x</td><td>8.3+</td></tr>
+          <tr><td>CPU (contenedor)</td><td>1 core</td><td>1 core</td></tr>
+          <tr><td>RAM</td><td>64 MB</td><td>128-256 MB</td></tr>
+          <tr><td>Disco</td><td>1 GB</td><td>2-4 GB</td></tr>
+          <tr><td>Red</td><td>Bridge (vmbr0)</td><td>Bridge + IP fija</td></tr>
+          <tr><td>Template</td><td>Debian 12/13 o Alpine</td><td>Debian 13</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout callout-green">
+      <span class="callout-icon">💡</span>
+      <div><p><strong>¿Alpine o Debian?</strong> Alpine es más ligero (~8 MB base), pero Debian es más familiar y tiene mejor soporte. Para un servidor web simple, ambos son perfectos. Esta guía usa Debian, pero incluye notas para Alpine.</p></div>
+    </div>
+  </section>
+
+  <hr class="div">
+
+  <!-- ── 03 CREAR LXC ── -->
+  <section class="sec" id="lxc">
+    <div class="sec-num">03 · Contenedor</div>
+    <h2>Crear el contenedor LXC</h2>
+    <p>Vamos a crear un contenedor Debian 13 mínimo, no privilegiado y con arranque automático.</p>
+
+    <h3>Descargar la plantilla</h3>
+    <p>Desde la shell del nodo Proxmox (host):</p>
+    <pre data-file="shell proxmox"><code><span class="cm"># Actualizar lista de plantillas</span>
+<span class="cmd">pveam</span> update
+
+<span class="cm"># Buscar Debian 13</span>
+<span class="cmd">pveam</span> available <span class="fl">--section</span> system | <span class="cmd">grep</span> debian-13
+
+<span class="cm"># Descargar</span>
+<span class="cmd">pveam</span> download local debian-13-standard_13.1-2_amd64.tar.zst</code></pre>
+
+    <h3>Crear el contenedor</h3>
+    <pre data-file="shell proxmox"><code><span class="cmd">pct</span> create <span class="num">200</span> local:vztmpl/debian-13-standard_13.1-2_amd64.tar.zst \
+  <span class="fl">--hostname</span> <span class="str">webserver</span> \
+  <span class="fl">--password</span> <span class="str">"TU_PASSWORD_SEGURA"</span> \
+  <span class="fl">--cores</span> <span class="num">1</span> \
+  <span class="fl">--memory</span> <span class="num">256</span> \
+  <span class="fl">--swap</span> <span class="num">128</span> \
+  <span class="fl">--rootfs</span> local-lvm:<span class="num">4</span> \
+  <span class="fl">--net0</span> name=eth0,bridge=vmbr0,ip=<span class="str">192.168.1.200/24</span>,gw=<span class="str">192.168.1.1</span> \
+  <span class="fl">--nameserver</span> <span class="str">192.168.1.1</span> \
+  <span class="fl">--unprivileged</span> <span class="num">1</span> \
+  <span class="fl">--onboot</span> <span class="num">1</span> \
+  <span class="fl">--start</span> <span class="num">1</span></code></pre>
+
+    <div class="callout callout-yellow">
+      <span class="callout-icon">⚠️</span>
+      <div><p><strong>IP fija:</strong> Cambia <code>192.168.1.200/24</code> y <code>gw=192.168.1.1</code> por valores de tu red. Si prefieres DHCP, usa <code>ip=dhcp</code> en su lugar (pero tendrás que buscar la IP luego).</p></div>
+    </div>
+
+    <h3>Entrar y preparar el contenedor</h3>
+    <pre data-file="shell proxmox"><code><span class="cm"># Entrar al contenedor</span>
+<span class="cmd">pct</span> enter <span class="num">200</span>
+
+<span class="cm"># Actualizar paquetes</span>
+<span class="cmd">apt</span> update && <span class="cmd">apt</span> upgrade <span class="fl">-y</span>
+
+<span class="cm"># Instalar utilidades básicas</span>
+<span class="cmd">apt</span> install <span class="fl">-y</span> curl wget nano rsync unzip</code></pre>
+
+    <div class="callout callout-blue">
+      <span class="callout-icon">🏔️</span>
+      <div>
+        <p><strong>Con Alpine Linux</strong> (más ligero):</p>
+        <p><code>pveam download local alpine-3.20-default_20240908_amd64.tar.xz</code><br>Luego usa <code>apk update && apk add nginx</code> en vez de <code>apt</code>.</p>
+      </div>
+    </div>
+  </section>
+
+  <hr class="div">
+
+  <!-- ── 04 NGINX ── -->
+  <section class="sec" id="nginx">
+    <div class="sec-num">04 · Servidor web</div>
+    <h2>Instalar y configurar Nginx</h2>
+    <p>Nginx es el servidor web perfecto para contenido estático: usa poca memoria, es extremadamente rápido y la configuración es sencilla.</p>
+
+    <h3>Instalar Nginx</h3>
+    <pre data-file="dentro del lxc"><code><span class="cmd">apt</span> install <span class="fl">-y</span> nginx
+
+<span class="cm"># Verificar que está corriendo</span>
+<span class="cmd">systemctl</span> status nginx
+
+<span class="cm"># Habilitar inicio automático</span>
+<span class="cmd">systemctl</span> enable nginx</code></pre>
+
+    <p>Prueba que funciona abriendo <code>http://192.168.1.200</code> en tu navegador. Deberías ver la página por defecto de Nginx.</p>
+
+    <h3>Estructura de directorios</h3>
+    <pre data-file="referencia"><code><span class="vr">/etc/nginx/</span>
+  ├── nginx.conf              <span class="cm"># Config principal</span>
+  ├── sites-available/        <span class="cm"># Configs de sitios (todos)</span>
+  │   └── default
+  ├── sites-enabled/          <span class="cm"># Sitios activos (symlinks)</span>
+  │   └── default → ../sites-available/default
+  └── snippets/               <span class="cm"># Fragmentos reutilizables</span>
+
+<span class="vr">/var/www/</span>
+  └── html/                   <span class="cm"># Raíz web por defecto</span>
+      └── index.nginx-debian.html</code></pre>
+
+    <h3>Configurar el sitio principal</h3>
+    <p>Edita el archivo de configuración del sitio por defecto:</p>
+    <pre data-file="/etc/nginx/sites-available/default"><code><span class="kw">server</span> {
+    <span class="kw">listen</span> <span class="num">80</span> default_server;
+    <span class="kw">listen</span> [::]:<span class="num">80</span> default_server;
+
+    <span class="kw">root</span>   <span class="str">/var/www/html</span>;
+    <span class="kw">index</span>  index.html index.htm;
+
+    <span class="kw">server_name</span> _;
+
+    <span class="cm"># Caché agresiva para archivos estáticos</span>
+    <span class="kw">location</span> ~* \.(css|js|jpg|jpeg|png|gif|ico|svg|woff2?)$ {
+        <span class="kw">expires</span> 30d;
+        <span class="kw">add_header</span> Cache-Control <span class="str">"public, immutable"</span>;
+    }
+
+    <span class="cm"># Compresión gzip</span>
+    <span class="kw">gzip</span> on;
+    <span class="kw">gzip_types</span> text/plain text/css application/json application/javascript text/xml;
+    <span class="kw">gzip_min_length</span> 1000;
+
+    <span class="kw">location</span> / {
+        <span class="kw">try_files</span> $uri $uri/ =404;
+    }
+}</code></pre>
+
+    <pre data-file="shell"><code><span class="cm"># Verificar sintaxis y recargar</span>
+<span class="cmd">nginx</span> <span class="fl">-t</span>
+<span class="cmd">systemctl</span> reload nginx</code></pre>
+  </section>
+
+  <hr class="div">
+
+  <!-- ── 05 DEPLOY ── -->
+  <section class="sec" id="deploy">
+    <div class="sec-num">05 · Desplegar</div>
+    <h2>Subir tu web al servidor</h2>
+    <p>Tienes varias formas de mover tus archivos HTML/CSS/JS al contenedor. Aquí van de la más simple a la más pro.</p>
+
+    <h3>Opción A: SCP (desde tu máquina local)</h3>
+    <p>La forma más directa. Desde la terminal de tu PC/Mac:</p>
+    <pre data-file="tu máquina local"><code><span class="cm"># Copiar una carpeta entera</span>
+<span class="cmd">scp</span> <span class="fl">-r</span> ./mi-web/* root@192.168.1.200:<span class="str">/var/www/html/</span>
+
+<span class="cm"># Copiar un solo archivo</span>
+<span class="cmd">scp</span> index.html root@192.168.1.200:<span class="str">/var/www/html/</span></code></pre>
+
+    <h3>Opción B: rsync (mejor para actualizaciones)</h3>
+    <p>Solo transfiere los archivos que han cambiado. Ideal para actualizaciones frecuentes:</p>
+    <pre data-file="tu máquina local"><code><span class="cmd">rsync</span> <span class="fl">-avz --delete</span> ./mi-web/ root@192.168.1.200:<span class="str">/var/www/html/</span></code></pre>
+
+    <div class="callout callout-green">
+      <span class="callout-icon">💡</span>
+      <div><p><strong>El flag <code>--delete</code></strong> elimina del servidor los archivos que ya no existen en tu carpeta local. Omítelo si no quieres ese comportamiento.</p></div>
+    </div>
+
+    <h3>Opción C: Git (clonar directamente en el servidor)</h3>
+    <pre data-file="dentro del lxc"><code><span class="cmd">apt</span> install <span class="fl">-y</span> git
+
+<span class="cm"># Clonar el repo directamente en la raíz web</span>
+<span class="cmd">rm</span> <span class="fl">-rf</span> /var/www/html/*
+<span class="cmd">git</span> clone https://github.com/tu-usuario/tu-repo.git /var/www/html/
+
+<span class="cm"># Para actualizar después</span>
+<span class="cmd">cd</span> /var/www/html && <span class="cmd">git</span> pull</code></pre>
+
+    <h3>Opción D: Descomprimir un ZIP</h3>
+    <pre data-file="dentro del lxc"><code><span class="cm"># Si subiste un .zip con scp</span>
+<span class="cmd">unzip</span> mi-web.zip <span class="fl">-d</span> /var/www/html/</code></pre>
+
+    <h3>Verificar permisos</h3>
+    <p>Después de subir archivos, asegúrate de que Nginx puede leerlos:</p>
+    <pre data-file="dentro del lxc"><code><span class="cm"># Establecer propietario correcto</span>
+<span class="cmd">chown</span> <span class="fl">-R</span> www-data:www-data /var/www/html/
+
+<span class="cm"># Permisos: directorios 755, archivos 644</span>
+<span class="cmd">find</span> /var/www/html <span class="fl">-type d</span> <span class="fl">-exec</span> chmod 755 {} \;
+<span class="cmd">find</span> /var/www/html <span class="fl">-type f</span> <span class="fl">-exec</span> chmod 644 {} \;</code></pre>
+
+    <p>Ahora abre <code>http://192.168.1.200</code> y deberías ver tu web.</p>
+  </section>
+
+  <hr class="div">
+
+  <!-- ── 06 MULTI-SITIO ── -->
+  <section class="sec" id="vhosts">
+    <div class="sec-num">06 · Multi-sitio</div>
+    <h2>Hostear múltiples webs en el mismo contenedor</h2>
+    <p>Nginx soporta virtual hosts, así que puedes servir varias webs desde un solo contenedor, cada una con su propia carpeta y dominio local.</p>
+
+    <h3>Crear la estructura de carpetas</h3>
+    <pre data-file="dentro del lxc"><code><span class="cm"># Crear directorios para cada sitio</span>
+<span class="cmd">mkdir</span> <span class="fl">-p</span> /var/www/<span class="str">guia-openclaw</span>/
+<span class="cmd">mkdir</span> <span class="fl">-p</span> /var/www/<span class="str">guia-homeassistant</span>/
+<span class="cmd">mkdir</span> <span class="fl">-p</span> /var/www/<span class="str">portafolio</span>/
+
+<span class="cm"># Copiar archivos a cada uno</span>
+<span class="cmd">cp</span> index-openclaw.html /var/www/guia-openclaw/index.html
+<span class="cmd">cp</span> index-ha.html /var/www/guia-homeassistant/index.html
+
+<span class="cm"># Permisos</span>
+<span class="cmd">chown</span> <span class="fl">-R</span> www-data:www-data /var/www/</code></pre>
+
+    <h3>Método 1: Por subdirectorios (más fácil)</h3>
+    <p>Sirve cada web desde una ruta diferente en la misma IP:</p>
+    <pre data-file="/etc/nginx/sites-available/default"><code><span class="kw">server</span> {
+    <span class="kw">listen</span> <span class="num">80</span> default_server;
+    <span class="kw">server_name</span> _;
+
+    <span class="cm"># Página principal</span>
+    <span class="kw">root</span> <span class="str">/var/www/html</span>;
+    <span class="kw">index</span> index.html;
+
+    <span class="cm"># Guía OpenClaw en /openclaw</span>
+    <span class="kw">location</span> /openclaw/ {
+        <span class="kw">alias</span> <span class="str">/var/www/guia-openclaw/</span>;
+        <span class="kw">index</span> index.html;
+    }
+
+    <span class="cm"># Guía HA en /homeassistant</span>
+    <span class="kw">location</span> /homeassistant/ {
+        <span class="kw">alias</span> <span class="str">/var/www/guia-homeassistant/</span>;
+        <span class="kw">index</span> index.html;
+    }
+
+    <span class="cm"># Portafolio en /portafolio</span>
+    <span class="kw">location</span> /portafolio/ {
+        <span class="kw">alias</span> <span class="str">/var/www/portafolio/</span>;
+        <span class="kw">index</span> index.html;
+    }
+}</code></pre>
+    <p>Resultado: <code>http://192.168.1.200/openclaw/</code>, <code>http://192.168.1.200/homeassistant/</code>, etc.</p>
+
+    <h3>Método 2: Por puertos diferentes</h3>
+    <pre data-file="/etc/nginx/sites-available/openclaw"><code><span class="kw">server</span> {
+    <span class="kw">listen</span> <span class="num">8081</span>;
+    <span class="kw">server_name</span> _;
+    <span class="kw">root</span> <span class="str">/var/www/guia-openclaw</span>;
+    <span class="kw">index</span> index.html;
+}</code></pre>
+    <pre data-file="shell"><code><span class="cm"># Activar el sitio</span>
+<span class="cmd">ln</span> <span class="fl">-s</span> /etc/nginx/sites-available/openclaw /etc/nginx/sites-enabled/
+<span class="cmd">nginx</span> <span class="fl">-t</span> && <span class="cmd">systemctl</span> reload nginx</code></pre>
+    <p>Resultado: <code>http://192.168.1.200:8081</code></p>
+
+    <h3>Método 3: Por dominio local (el más elegante)</h3>
+    <p>Lo vemos en la siguiente sección.</p>
+  </section>
+
+  <hr class="div">
+
+  <!-- ── 07 DOMINIO LOCAL ── -->
+  <section class="sec" id="dominio">
+    <div class="sec-num">07 · DNS local</div>
+    <h2>Usar dominios locales personalizados</h2>
+    <p>En vez de recordar IPs y puertos, puedes acceder a tus webs con nombres como <code>guias.lan</code> o <code>openclaw.local</code>.</p>
+
+    <h3>Opción rápida: archivo hosts</h3>
+    <p>Edita el archivo hosts de cada dispositivo desde el que quieras acceder:</p>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Sistema</th><th>Archivo</th></tr></thead>
+        <tbody>
+          <tr><td>Windows</td><td><code>C:\Windows\System32\drivers\etc\hosts</code></td></tr>
+          <tr><td>macOS / Linux</td><td><code>/etc/hosts</code></td></tr>
+          <tr><td>Android / iOS</td><td>No se puede (necesitas DNS local)</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>Añade estas líneas:</p>
+    <pre data-file="hosts"><code><span class="num">192.168.1.200</span>   <span class="str">guias.lan</span>
+<span class="num">192.168.1.200</span>   <span class="str">openclaw.lan</span>
+<span class="num">192.168.1.200</span>   <span class="str">ha.lan</span></code></pre>
+
+    <h3>Opción pro: Pi-hole / AdGuard Home como DNS local</h3>
+    <p>Si ya tienes Pi-hole o AdGuard Home, puedes crear registros DNS locales para toda tu red (incluido móviles) sin tocar archivos hosts:</p>
+
+    <div class="step">
+      <div class="step-n">1</div>
+      <div class="step-body">
+        <h4>Pi-hole</h4>
+        <p>Ve a <em>Local DNS → DNS Records</em>, añade <code>guias.lan → 192.168.1.200</code>.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-n">2</div>
+      <div class="step-body">
+        <h4>AdGuard Home</h4>
+        <p>Ve a <em>Filtros → Reescrituras DNS</em>, añade el dominio y la IP.</p>
+      </div>
+    </div>
+
+    <h3>Configurar virtual hosts en Nginx por dominio</h3>
+    <pre data-file="/etc/nginx/sites-available/openclaw.lan"><code><span class="kw">server</span> {
+    <span class="kw">listen</span> <span class="num">80</span>;
+    <span class="kw">server_name</span> <span class="str">openclaw.lan</span>;
+    <span class="kw">root</span> <span class="str">/var/www/guia-openclaw</span>;
+    <span class="kw">index</span> index.html;
+
+    <span class="kw">location</span> / {
+        <span class="kw">try_files</span> $uri $uri/ =404;
+    }
+}</code></pre>
+
+    <pre data-file="/etc/nginx/sites-available/ha.lan"><code><span class="kw">server</span> {
+    <span class="kw">listen</span> <span class="num">80</span>;
+    <span class="kw">server_name</span> <span class="str">ha.lan</span>;
+    <span class="kw">root</span> <span class="str">/var/www/guia-homeassistant</span>;
+    <span class="kw">index</span> index.html;
+
+    <span class="kw">location</span> / {
+        <span class="kw">try_files</span> $uri $uri/ =404;
+    }
+}</code></pre>
+
+    <pre data-file="shell"><code><span class="cm"># Activar ambos sitios</span>
+<span class="cmd">ln</span> <span class="fl">-s</span> /etc/nginx/sites-available/openclaw.lan /etc/nginx/sites-enabled/
+<span class="cmd">ln</span> <span class="fl">-s</span> /etc/nginx/sites-available/ha.lan /etc/nginx/sites-enabled/
+
+<span class="cm"># Verificar y recargar</span>
+<span class="cmd">nginx</span> <span class="fl">-t</span> && <span class="cmd">systemctl</span> reload nginx</code></pre>
+
+    <p>Ahora puedes acceder a <code>http://openclaw.lan</code> y <code>http://ha.lan</code> desde cualquier dispositivo de tu red.</p>
+  </section>
+
+  <hr class="div">
+
+  <!-- ── 08 SSL ── -->
+  <section class="sec" id="ssl">
+    <div class="sec-num">08 · HTTPS local</div>
+    <h2>Añadir HTTPS con certificados auto-firmados</h2>
+    <p>Para redes locales no necesitas Let's Encrypt. Puedes generar certificados auto-firmados o usar <code>mkcert</code> para que tu navegador los acepte sin warnings.</p>
+
+    <h3>Opción A: mkcert (recomendado, sin warnings)</h3>
+    <pre data-file="tu máquina local (no el LXC)"><code><span class="cm"># Instalar mkcert</span>
+<span class="cm"># macOS:</span>
+<span class="cmd">brew</span> install mkcert
+
+<span class="cm"># Linux:</span>
+<span class="cmd">apt</span> install <span class="fl">-y</span> libnss3-tools
+<span class="cmd">curl</span> <span class="fl">-fsSL</span> https://dl.filippo.io/mkcert/latest?for=linux/amd64 <span class="fl">-o</span> mkcert
+<span class="cmd">chmod</span> +x mkcert && <span class="cmd">sudo mv</span> mkcert /usr/local/bin/
+
+<span class="cm"># Instalar CA raíz local (una sola vez)</span>
+<span class="cmd">mkcert</span> <span class="fl">-install</span>
+
+<span class="cm"># Generar certificado para tus dominios locales</span>
+<span class="cmd">mkcert</span> <span class="str">openclaw.lan ha.lan guias.lan 192.168.1.200</span>
+
+<span class="cm"># Salida: openclaw.lan+3.pem y openclaw.lan+3-key.pem</span></code></pre>
+
+    <pre data-file="tu máquina local"><code><span class="cm"># Subir los certificados al LXC</span>
+<span class="cmd">scp</span> openclaw.lan+3.pem root@192.168.1.200:<span class="str">/etc/nginx/ssl/cert.pem</span>
+<span class="cmd">scp</span> openclaw.lan+3-key.pem root@192.168.1.200:<span class="str">/etc/nginx/ssl/key.pem</span></code></pre>
+
+    <pre data-file="dentro del lxc"><code><span class="cm"># Crear directorio y proteger la clave</span>
+<span class="cmd">mkdir</span> <span class="fl">-p</span> /etc/nginx/ssl
+<span class="cmd">chmod</span> 600 /etc/nginx/ssl/key.pem</code></pre>
+
+    <h3>Opción B: Certificado auto-firmado (con warning del navegador)</h3>
+    <pre data-file="dentro del lxc"><code><span class="cmd">openssl</span> req <span class="fl">-x509 -nodes -days 3650</span> \
+  <span class="fl">-newkey</span> rsa:2048 \
+  <span class="fl">-keyout</span> /etc/nginx/ssl/key.pem \
+  <span class="fl">-out</span> /etc/nginx/ssl/cert.pem \
+  <span class="fl">-subj</span> <span class="str">"/CN=guias.lan"</span></code></pre>
+
+    <h3>Configurar Nginx con HTTPS</h3>
+    <pre data-file="/etc/nginx/sites-available/openclaw.lan"><code><span class="kw">server</span> {
+    <span class="kw">listen</span> <span class="num">80</span>;
+    <span class="kw">server_name</span> <span class="str">openclaw.lan</span>;
+    <span class="kw">return</span> <span class="num">301</span> https://$host$request_uri;
+}
+
+<span class="kw">server</span> {
+    <span class="kw">listen</span> <span class="num">443</span> ssl;
+    <span class="kw">server_name</span> <span class="str">openclaw.lan</span>;
+
+    <span class="kw">ssl_certificate</span>     <span class="str">/etc/nginx/ssl/cert.pem</span>;
+    <span class="kw">ssl_certificate_key</span> <span class="str">/etc/nginx/ssl/key.pem</span>;
+
+    <span class="kw">root</span> <span class="str">/var/www/guia-openclaw</span>;
+    <span class="kw">index</span> index.html;
+
+    <span class="kw">location</span> / {
+        <span class="kw">try_files</span> $uri $uri/ =404;
+    }
+}</code></pre>
+
+    <pre data-file="shell"><code><span class="cmd">nginx</span> <span class="fl">-t</span> && <span class="cmd">systemctl</span> reload nginx</code></pre>
+  </section>
+
+  <hr class="div">
+
+  <!-- ── 09 AUTO-DEPLOY ── -->
+  <section class="sec" id="autodeploy">
+    <div class="sec-num">09 · Automatización</div>
+    <h2>Auto-deploy desde Git</h2>
+    <p>Puedes hacer que el servidor se actualice automáticamente cuando hagas push a tu repo de GitHub, o simplemente usar un cron que haga pull periódicamente.</p>
+
+    <h3>Método simple: cron + git pull</h3>
+    <pre data-file="dentro del lxc"><code><span class="cm"># Editar crontab</span>
+<span class="cmd">crontab</span> <span class="fl">-e</span>
+
+<span class="cm"># Añadir esta línea (pull cada 5 minutos)</span>
+*/5 * * * * <span class="cmd">cd</span> /var/www/guia-openclaw && <span class="cmd">git</span> pull origin main <span class="fl">--quiet</span></code></pre>
+
+    <h3>Método avanzado: webhook con GitHub</h3>
+    <p>Instala un listener ligero que recibe webhooks de GitHub y ejecuta <code>git pull</code> automáticamente:</p>
+    <pre data-file="dentro del lxc"><code><span class="cmd">apt</span> install <span class="fl">-y</span> webhook
+
+<span class="cm"># Crear config del webhook</span>
+<span class="cmd">cat</span> > /etc/webhook.conf &lt;&lt; <span class="str">'EOF'</span>
+[
+  {
+    "id": "deploy-openclaw",
+    "execute-command": "/opt/deploy.sh",
+    "command-working-directory": "/var/www/guia-openclaw"
+  }
+]
+<span class="str">EOF</span>
+
+<span class="cm"># Crear script de deploy</span>
+<span class="cmd">cat</span> > /opt/deploy.sh &lt;&lt; <span class="str">'EOF'</span>
+#!/bin/bash
+cd /var/www/guia-openclaw
+git pull origin main
+chown -R www-data:www-data .
+<span class="str">EOF</span>
+
+<span class="cmd">chmod</span> +x /opt/deploy.sh</code></pre>
+
+    <h3>Método one-liner: script de deploy con rsync</h3>
+    <p>Crea un alias en tu máquina local para desplegar con un solo comando:</p>
+    <pre data-file="tu máquina local · ~/.bashrc o ~/.zshrc"><code><span class="cm"># Añadir alias</span>
+<span class="kw">alias</span> <span class="vr">deploy-openclaw</span>=<span class="str">"rsync -avz --delete ./mi-web/ root@192.168.1.200:/var/www/guia-openclaw/"</span>
+<span class="kw">alias</span> <span class="vr">deploy-ha</span>=<span class="str">"rsync -avz --delete ./mi-otra-web/ root@192.168.1.200:/var/www/guia-homeassistant/"</span></code></pre>
+
+    <p>Ahora solo ejecutas <code>deploy-openclaw</code> desde tu terminal y listo.</p>
+  </section>
+
+  <hr class="div">
+
+  <!-- ── 10 SEGURIDAD ── -->
+  <section class="sec" id="seguridad">
+    <div class="sec-num">10 · Seguridad</div>
+    <h2>Securizar el servidor</h2>
+    <p>Aunque es una web local, aplicar seguridad básica es buena práctica y te protege de dispositivos comprometidos en tu red.</p>
+
+    <h3>Firewall con UFW</h3>
+    <pre data-file="dentro del lxc"><code><span class="cmd">apt</span> install <span class="fl">-y</span> ufw
+
+<span class="cm"># Políticas por defecto</span>
+<span class="cmd">ufw</span> default deny incoming
+<span class="cmd">ufw</span> default allow outgoing
+
+<span class="cm"># Permitir SSH solo desde tu red</span>
+<span class="cmd">ufw</span> allow from <span class="str">192.168.1.0/24</span> to any port <span class="num">22</span>
+
+<span class="cm"># Permitir HTTP y HTTPS desde tu red</span>
+<span class="cmd">ufw</span> allow from <span class="str">192.168.1.0/24</span> to any port <span class="num">80</span>
+<span class="cmd">ufw</span> allow from <span class="str">192.168.1.0/24</span> to any port <span class="num">443</span>
+
+<span class="cm"># Activar</span>
+<span class="cmd">ufw</span> enable
+<span class="cmd">ufw</span> status</code></pre>
+
+    <h3>Headers de seguridad en Nginx</h3>
+    <p>Añade esto dentro del bloque <code>server</code>:</p>
+    <pre data-file="nginx config"><code><span class="cm"># Headers de seguridad</span>
+<span class="kw">add_header</span> X-Frame-Options <span class="str">"SAMEORIGIN"</span> always;
+<span class="kw">add_header</span> X-Content-Type-Options <span class="str">"nosniff"</span> always;
+<span class="kw">add_header</span> X-XSS-Protection <span class="str">"1; mode=block"</span> always;
+<span class="kw">add_header</span> Referrer-Policy <span class="str">"strict-origin-when-cross-origin"</span> always;
+
+<span class="cm"># Ocultar versión de Nginx</span>
+<span class="kw">server_tokens</span> off;</code></pre>
+
+    <h3>Desactivar SSH con password (opcional)</h3>
+    <pre data-file="/etc/ssh/sshd_config"><code><span class="vr">PermitRootLogin</span> prohibit-password
+<span class="vr">PasswordAuthentication</span> no
+<span class="vr">PubkeyAuthentication</span> yes</code></pre>
+    <pre data-file="shell"><code><span class="cmd">systemctl</span> restart sshd</code></pre>
+
+    <div class="callout callout-red">
+      <span class="callout-icon">🔒</span>
+      <div><p><strong>Antes de desactivar password auth,</strong> asegúrate de haber copiado tu clave pública SSH al contenedor con <code>ssh-copy-id root@192.168.1.200</code>. Si no, perderás el acceso.</p></div>
+    </div>
+  </section>
+
+  <hr class="div">
+
+  <!-- ── 11 TROUBLESHOOTING ── -->
+  <section class="sec" id="troubleshooting">
+    <div class="sec-num">11 · Troubleshooting</div>
+    <h2>Solución de problemas</h2>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Problema</th><th>Causa</th><th>Solución</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>403 Forbidden</td>
+            <td>Permisos incorrectos</td>
+            <td><code>chown -R www-data:www-data /var/www/</code></td>
+          </tr>
+          <tr>
+            <td>404 Not Found</td>
+            <td>Ruta incorrecta o falta index.html</td>
+            <td>Verifica <code>root</code> en config de Nginx y que el archivo existe</td>
+          </tr>
+          <tr>
+            <td>Página de Nginx por defecto</td>
+            <td>Config no activada o mal escrita</td>
+            <td>Revisa symlink en sites-enabled, ejecuta <code>nginx -t</code></td>
+          </tr>
+          <tr>
+            <td>No se resuelve el dominio .lan</td>
+            <td>DNS no configurado</td>
+            <td>Revisa /etc/hosts o la config de Pi-hole / AdGuard</td>
+          </tr>
+          <tr>
+            <td>Connection refused</td>
+            <td>Nginx no está corriendo</td>
+            <td><code>systemctl start nginx</code>, revisa logs con <code>journalctl -u nginx</code></td>
+          </tr>
+          <tr>
+            <td>ERR_SSL_PROTOCOL_ERROR</td>
+            <td>Puerto 443 sin SSL configurado</td>
+            <td>Verifica que los certificados existen y las rutas son correctas</td>
+          </tr>
+          <tr>
+            <td>No puedo acceder desde otros dispositivos</td>
+            <td>Firewall del contenedor</td>
+            <td><code>ufw status</code> — asegura que puerto 80/443 está abierto</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Comandos útiles de diagnóstico</h3>
+    <pre data-file="shell"><code><span class="cm"># Verificar config de Nginx</span>
+<span class="cmd">nginx</span> <span class="fl">-t</span>
+
+<span class="cm"># Ver logs de error</span>
+<span class="cmd">tail</span> <span class="fl">-f</span> /var/log/nginx/error.log
+
+<span class="cm"># Ver logs de acceso</span>
+<span class="cmd">tail</span> <span class="fl">-f</span> /var/log/nginx/access.log
+
+<span class="cm"># Ver qué puertos están abiertos</span>
+<span class="cmd">ss</span> <span class="fl">-tlnp</span>
+
+<span class="cm"># Probar la web desde el propio contenedor</span>
+<span class="cmd">curl</span> <span class="fl">-I</span> http://localhost
+
+<span class="cm"># Ver uso de recursos del contenedor</span>
+<span class="cmd">free</span> <span class="fl">-h</span> && <span class="cmd">df</span> <span class="fl">-h</span></code></pre>
+  </section>
+
+  <hr class="div">
+
+  <!-- ── RESUMEN ── -->
+  <section class="sec" id="resumen">
+    <div class="sec-num">Resumen</div>
+    <h2>Cheatsheet de comandos</h2>
+    <p>Referencia rápida con los comandos más usados de toda la guía.</p>
+
+    <pre data-file="cheatsheet"><code><span class="cm"># ─── PROXMOX (desde el host) ───────────────────</span>
+<span class="cmd">pct</span> start <span class="num">200</span>              <span class="cm"># Arrancar contenedor</span>
+<span class="cmd">pct</span> enter <span class="num">200</span>              <span class="cm"># Entrar al contenedor</span>
+<span class="cmd">pct</span> stop <span class="num">200</span>               <span class="cm"># Parar contenedor</span>
+<span class="cmd">pct</span> snapshot <span class="num">200</span> pre-update <span class="cm"># Snapshot antes de cambios</span>
+
+<span class="cm"># ─── NGINX (dentro del LXC) ────────────────────</span>
+<span class="cmd">nginx</span> <span class="fl">-t</span>                   <span class="cm"># Verificar config</span>
+<span class="cmd">systemctl</span> reload nginx     <span class="cm"># Recargar config</span>
+<span class="cmd">systemctl</span> restart nginx    <span class="cm"># Reiniciar Nginx</span>
+<span class="cmd">tail</span> <span class="fl">-f</span> /var/log/nginx/error.log  <span class="cm"># Ver errores</span>
+
+<span class="cm"># ─── DEPLOY (desde tu PC) ──────────────────────</span>
+<span class="cmd">scp</span> <span class="fl">-r</span> ./web/* root@192.168.1.200:/var/www/html/
+<span class="cmd">rsync</span> <span class="fl">-avz --delete</span> ./web/ root@192.168.1.200:/var/www/html/
+
+<span class="cm"># ─── PERMISOS (dentro del LXC) ─────────────────</span>
+<span class="cmd">chown</span> <span class="fl">-R</span> www-data:www-data /var/www/
+<span class="cmd">find</span> /var/www <span class="fl">-type d -exec</span> chmod 755 {} \;
+<span class="cmd">find</span> /var/www <span class="fl">-type f -exec</span> chmod 644 {} \;</code></pre>
+  </section>
+
+</div>
+
+<!-- ═══ FOOTER ═══ -->
+<footer class="footer">
+  <p>Guía creada en Marzo 2026 · Hosting local con Proxmox + Nginx</p>
+  <p style="margin-top:.4rem">Sin cloud · Sin costes · Sin límites · <a href="#intro">↑ Volver arriba</a></p>
+</footer>
+
+<!-- Scroll reveal -->
+<script>
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if(e.isIntersecting) {
+      e.target.style.opacity='1';
+      e.target.style.transform='translateY(0)';
+    }
+  });
+}, {threshold:.08});
+
+document.querySelectorAll('.sec, .card, .step').forEach(el => {
+  el.style.opacity='0';
+  el.style.transform='translateY(18px)';
+  el.style.transition='opacity .5s ease, transform .5s ease';
+  obs.observe(el);
+});
+</script>
+
+</body>
+</html>
