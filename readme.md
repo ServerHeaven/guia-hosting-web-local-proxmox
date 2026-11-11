@@ -13,16 +13,16 @@
 </p>
 
 <p align="center">
-  <a href="https://TU_USUARIO.github.io/NOMBRE_REPO/">🌐 Ver la guía online</a> ·
-  <a href="https://github.com/TU_USUARIO/NOMBRE_REPO/issues">🐛 Reportar error</a> ·
-  <a href="https://github.com/TU_USUARIO/NOMBRE_REPO/issues">💡 Sugerir mejora</a>
+  <a href="https://github.com/ServerHeaven/guia-hosting-web-local-proxmox/issues">🐛 Reportar error / Report a bug</a> ·
+  <a href="https://github.com/ServerHeaven/guia-hosting-web-local-proxmox/issues">💡 Sugerir mejora / Suggest an improvement</a> ·
+  <a href="#english">🇬🇧 English</a>
 </p>
 
 -----
 
 ## 📖 ¿Qué es esto?
 
-Una **guía web interactiva** (un solo archivo HTML, sin dependencias) que explica paso a paso cómo montar un servidor web local en Proxmox VE usando un contenedor LXC con Nginx. Cubre desde la creación del contenedor hasta HTTPS, multi-sitio, auto-deploy y seguridad.
+Una **guía web interactiva y bilingüe ES/EN** (un solo archivo HTML, selector **ES / EN** o `?lang=en`; solo carga tipografías de Google Fonts) que explica paso a paso cómo montar un servidor web local en Proxmox VE usando un contenedor LXC con Nginx. Cubre desde la creación del contenedor hasta HTTPS, multi-sitio, auto-deploy y seguridad.
 
 Ideal si ya tienes un servidor Proxmox en casa y quieres hostear dashboards, documentación, guías, portafolios o cualquier sitio estático sin depender de servicios externos.
 
@@ -61,11 +61,11 @@ Ideal si ya tienes un servidor Proxmox en casa y quieres hostear dashboards, doc
 
 |Componente       |Mínimo             |Recomendado|
 |-----------------|-------------------|-----------|
-|Proxmox VE       |7.x                |8.3+       |
+|Proxmox VE       |8.x                |Última 8.x o 9.x|
 |CPU              |1 core             |1 core     |
 |RAM              |64 MB              |128–256 MB |
 |Disco            |1 GB               |2–4 GB     |
-|SO del contenedor|Debian 12+ o Alpine|Debian 13  |
+|SO del contenedor|Debian 12/13 o Alpine|Debian 13  |
 
 
 > Un contenedor LXC con Nginx consume ~50-80 MB de RAM. Puedes tener decenas corriendo simultáneamente sin problemas.
@@ -75,12 +75,11 @@ Ideal si ya tienes un servidor Proxmox en casa y quieres hostear dashboards, doc
 ### Ver la guía
 
 ```bash
-git clone https://github.com/TU_USUARIO/NOMBRE_REPO.git
-cd NOMBRE_REPO
-open index.html
+git clone https://github.com/ServerHeaven/guia-hosting-web-local-proxmox.git
+cd guia-hosting-web-local-proxmox
+open index.html   # macOS; en Linux: xdg-open index.html
 ```
 
-O visita directamente la [versión online](https://TU_USUARIO.github.io/NOMBRE_REPO/).
 
 ### Resumen express (si no quieres leer la guía entera)
 
@@ -105,9 +104,8 @@ scp -r ./mi-web/* root@192.168.1.200:/var/www/html/
 
 ```
 .
-├── index.html     # Guía web completa (archivo único, cero dependencias)
-├── README.md      # Este archivo
-└── LICENSE        # Licencia MIT
+├── index.html     # Guía web completa bilingüe (archivo único)
+└── readme.md      # Este archivo
 ```
 
 ## 🧰 Cheatsheet de comandos
@@ -155,7 +153,7 @@ find /var/www -type f -exec chmod 644 {} \;
 
 ## 📜 Licencia
 
-Distribuido bajo la licencia MIT. Consulta `LICENSE` para más información.
+Distribuido bajo la licencia MIT (pendiente de añadir el archivo `LICENSE` al repositorio).
 
 -----
 
@@ -164,3 +162,25 @@ Distribuido bajo la licencia MIT. Consulta `LICENSE` para más información.
   <br>
   <sub>Si te ha sido útil, dale una ⭐ — ayuda a que otros la encuentren</sub>
 </p>
+
+-----
+
+## English
+
+An **interactive bilingual (ES/EN) web guide** — a single HTML file with an **ES / EN** switch (or `?lang=en`) — explaining step by step how to host static websites on a local Proxmox VE server using an LXC container with Nginx: container creation, Nginx, uploading sites (SCP, rsync, Git, ZIP), multi-site (subdirectories, ports, domains), local DNS, local HTTPS (mkcert), auto-deploy, security and troubleshooting.
+
+**Requirements:** Proxmox VE 8.x or later (latest 8.x or 9.x recommended), 1 core, 64–256 MB RAM, 1–4 GB disk, Debian 12/13 or Alpine template.
+
+**Quick start**
+
+```bash
+git clone https://github.com/ServerHeaven/guia-hosting-web-local-proxmox.git
+cd guia-hosting-web-local-proxmox
+open index.html   # macOS; on Linux: xdg-open index.html
+```
+
+**Notes added in the latest review:** template names change over time (use `pveam available`); `.local` is reserved for mDNS (prefer `.lan` or `home.arpa`); mkcert's root CA must be installed on every client device; GitHub webhooks cannot reach a private LAN IP (use the cron method); the `git pull` cron may need `safe.directory`; `add_header` directives are not inherited by a `location` that defines its own.
+
+The English translations live in the `<script id="i18n-data">` block at the end of `index.html`, keyed by the original Spanish text.
+
+Released under the MIT license (the `LICENSE` file is still to be added to the repository).

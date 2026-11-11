@@ -415,6 +415,12 @@ hr.div {
   .cards { grid-template-columns: 1fr; }
 }
 </style>
+<style id="i18n-css">.i18n-sw{position:fixed;top:12px;right:12px;z-index:9999;display:flex;border:1px solid rgba(255,255,255,.25);border-radius:999px;overflow:hidden;background:rgba(10,12,16,.88);backdrop-filter:blur(6px);font:600 12px/1 system-ui,sans-serif}
+.i18n-sw button{all:unset;cursor:pointer;padding:8px 13px;color:#c8d0dc;letter-spacing:.06em}
+.i18n-sw button[aria-pressed="true"]{background:#fff;color:#0a0c10}
+.i18n-sw button:focus-visible{outline:2px solid #4cc9f0;outline-offset:-2px}
+@media print{.i18n-sw{display:none}}
+</style>
 </head>
 <body>
 
@@ -500,7 +506,7 @@ hr.div {
       <table>
         <thead><tr><th>Componente</th><th>Mínimo</th><th>Recomendado</th></tr></thead>
         <tbody>
-          <tr><td>Proxmox VE</td><td>7.x</td><td>8.3+</td></tr>
+          <tr><td>Proxmox VE</td><td>8.x</td><td>Última 8.x o 9.x</td></tr>
           <tr><td>CPU (contenedor)</td><td>1 core</td><td>1 core</td></tr>
           <tr><td>RAM</td><td>64 MB</td><td>128-256 MB</td></tr>
           <tr><td>Disco</td><td>1 GB</td><td>2-4 GB</td></tr>
@@ -536,6 +542,10 @@ hr.div {
 <span class="cmd">pveam</span> download local debian-13-standard_13.1-2_amd64.tar.zst</code></pre>
 
     <h3>Crear el contenedor</h3>
+    <div class="callout callout-yellow">
+      <span class="callout-icon">⚠️</span>
+      <div><p><strong>Nombres de plantilla:</strong> el nombre exacto (<code>debian-13-standard_13.1-2_amd64.tar.zst</code>) cambia con cada actualización de Debian. Usa el que te muestre <code>pveam available</code>. Las plantillas de Debian 13 requieren una versión de Proxmox VE que las soporte; si tu nodo no las ofrece, usa Debian 12.</p></div>
+    </div>
     <pre data-file="shell proxmox"><code><span class="cmd">pct</span> create <span class="num">200</span> local:vztmpl/debian-13-standard_13.1-2_amd64.tar.zst \
   <span class="fl">--hostname</span> <span class="str">webserver</span> \
   <span class="fl">--password</span> <span class="str">"TU_PASSWORD_SEGURA"</span> \
@@ -568,7 +578,7 @@ hr.div {
       <span class="callout-icon">🏔️</span>
       <div>
         <p><strong>Con Alpine Linux</strong> (más ligero):</p>
-        <p><code>pveam download local alpine-3.20-default_20240908_amd64.tar.xz</code><br>Luego usa <code>apk update && apk add nginx</code> en vez de <code>apt</code>.</p>
+        <p><code>pveam available --section system | grep alpine</code><br>Descarga la plantilla que aparezca con <code>pveam download local NOMBRE</code>. Luego usa <code>apk update && apk add nginx</code> en vez de <code>apt</code>.</p>
       </div>
     </div>
   </section>
@@ -616,10 +626,9 @@ hr.div {
 
     <span class="kw">server_name</span> _;
 
-    <span class="cm"># Caché agresiva para archivos estáticos</span>
+    <span class="cm"># Caché de 7 días para archivos estáticos (sin "immutable": si no versionas los nombres, los cambios tardarían en verse)</span>
     <span class="kw">location</span> ~* \.(css|js|jpg|jpeg|png|gif|ico|svg|woff2?)$ {
-        <span class="kw">expires</span> 30d;
-        <span class="kw">add_header</span> Cache-Control <span class="str">"public, immutable"</span>;
+        <span class="kw">add_header</span> Cache-Control <span class="str">"public, max-age=604800"</span>;
     }
 
     <span class="cm"># Compresión gzip</span>
@@ -761,7 +770,11 @@ hr.div {
   <section class="sec" id="dominio">
     <div class="sec-num">07 · DNS local</div>
     <h2>Usar dominios locales personalizados</h2>
-    <p>En vez de recordar IPs y puertos, puedes acceder a tus webs con nombres como <code>guias.lan</code> o <code>openclaw.local</code>.</p>
+    <p>En vez de recordar IPs y puertos, puedes acceder a tus webs con nombres como <code>guias.lan</code> o <code>openclaw.lan</code>.</p>
+    <div class="callout callout-blue">
+      <span class="callout-icon">ℹ️</span>
+      <div><p><strong>Sufijo del dominio:</strong> evita <code>.local</code> (reservado para mDNS y suele dar problemas). <code>.lan</code> funciona en la práctica; el sufijo reservado oficialmente para redes domésticas es <code>home.arpa</code> (RFC 8375), por ejemplo <code>guias.home.arpa</code>.</p></div>
+    </div>
 
     <h3>Opción rápida: archivo hosts</h3>
     <p>Edita el archivo hosts de cada dispositivo desde el que quieras acceder:</p>
@@ -848,7 +861,7 @@ hr.div {
 
 <span class="cm"># Linux:</span>
 <span class="cmd">apt</span> install <span class="fl">-y</span> libnss3-tools
-<span class="cmd">curl</span> <span class="fl">-fsSL</span> https://dl.filippo.io/mkcert/latest?for=linux/amd64 <span class="fl">-o</span> mkcert
+<span class="cmd">curl</span> <span class="fl">-fsSL</span> "https://dl.filippo.io/mkcert/latest?for=linux/amd64" <span class="fl">-o</span> mkcert
 <span class="cmd">chmod</span> +x mkcert && <span class="cmd">sudo mv</span> mkcert /usr/local/bin/
 
 <span class="cm"># Instalar CA raíz local (una sola vez)</span>
@@ -859,13 +872,20 @@ hr.div {
 
 <span class="cm"># Salida: openclaw.lan+3.pem y openclaw.lan+3-key.pem</span></code></pre>
 
+    <pre data-file="dentro del lxc"><code><span class="cm"># Primero: crear el directorio de destino</span>
+<span class="cmd">mkdir</span> <span class="fl">-p</span> /etc/nginx/ssl</code></pre>
+
     <pre data-file="tu máquina local"><code><span class="cm"># Subir los certificados al LXC</span>
 <span class="cmd">scp</span> openclaw.lan+3.pem root@192.168.1.200:<span class="str">/etc/nginx/ssl/cert.pem</span>
 <span class="cmd">scp</span> openclaw.lan+3-key.pem root@192.168.1.200:<span class="str">/etc/nginx/ssl/key.pem</span></code></pre>
 
-    <pre data-file="dentro del lxc"><code><span class="cm"># Crear directorio y proteger la clave</span>
-<span class="cmd">mkdir</span> <span class="fl">-p</span> /etc/nginx/ssl
+    <pre data-file="dentro del lxc"><code><span class="cm"># Proteger la clave privada</span>
 <span class="cmd">chmod</span> 600 /etc/nginx/ssl/key.pem</code></pre>
+
+    <div class="callout callout-yellow">
+      <span class="callout-icon">⚠️</span>
+      <div><p><strong>Cada dispositivo necesita confiar en la CA:</strong> mkcert solo evita los avisos en los equipos donde se ha instalado su CA raíz (<code>mkcert -install</code>). Para otros PCs y móviles copia el archivo <code>rootCA.pem</code> (ruta con <code>mkcert -CAROOT</code>) e instálalo como certificado de confianza. No lo compartas fuera de tu red: quien tenga esa CA puede emitir certificados que tus dispositivos aceptarán.</p></div>
+    </div>
 
     <h3>Opción B: Certificado auto-firmado (con warning del navegador)</h3>
     <pre data-file="dentro del lxc"><code><span class="cmd">openssl</span> req <span class="fl">-x509 -nodes -days 3650</span> \
@@ -913,9 +933,17 @@ hr.div {
 
 <span class="cm"># Añadir esta línea (pull cada 5 minutos)</span>
 */5 * * * * <span class="cmd">cd</span> /var/www/guia-openclaw && <span class="cmd">git</span> pull origin main <span class="fl">--quiet</span></code></pre>
+    <div class="callout callout-yellow">
+      <span class="callout-icon">⚠️</span>
+      <div><p><strong>«dubious ownership»:</strong> si el repo pertenece a <code>www-data</code> (tras el <code>chown</code>) y el cron corre como <code>root</code>, git se niega a hacer pull. Ejecuta una vez <code>git config --global --add safe.directory /var/www/guia-openclaw</code>, o programa el cron del usuario <code>www-data</code> (<code>crontab -u www-data -e</code>).</p></div>
+    </div>
 
     <h3>Método avanzado: webhook con GitHub</h3>
     <p>Instala un listener ligero que recibe webhooks de GitHub y ejecuta <code>git pull</code> automáticamente:</p>
+    <div class="callout callout-red">
+      <span class="callout-icon">🚫</span>
+      <div><p><strong>Ojo con la red local:</strong> GitHub no puede alcanzar una IP privada como 192.168.1.200, así que este método solo funciona si expones el listener a internet (túnel, reverse proxy…), lo que contradice el enfoque 100% local. Si lo haces, protege el hook con un secreto de GitHub. Para un servidor solo-LAN, usa el cron.</p></div>
+    </div>
     <pre data-file="dentro del lxc"><code><span class="cmd">apt</span> install <span class="fl">-y</span> webhook
 
 <span class="cm"># Crear config del webhook</span>
@@ -937,7 +965,10 @@ git pull origin main
 chown -R www-data:www-data .
 <span class="str">EOF</span>
 
-<span class="cmd">chmod</span> +x /opt/deploy.sh</code></pre>
+<span class="cmd">chmod</span> +x /opt/deploy.sh
+
+<span class="cm"># Arrancar el servicio (escucha en el puerto 9000 → /hooks/deploy-openclaw)</span>
+<span class="cmd">systemctl</span> enable --now webhook</code></pre>
 
     <h3>Método one-liner: script de deploy con rsync</h3>
     <p>Crea un alias en tu máquina local para desplegar con un solo comando:</p>
@@ -966,7 +997,7 @@ chown -R www-data:www-data .
 <span class="cm"># Permitir SSH solo desde tu red</span>
 <span class="cmd">ufw</span> allow from <span class="str">192.168.1.0/24</span> to any port <span class="num">22</span>
 
-<span class="cm"># Permitir HTTP y HTTPS desde tu red</span>
+<span class="cm"># Permitir HTTP y HTTPS desde tu red (abre igual los puertos extra, p. ej. 8081, si los usas)</span>
 <span class="cmd">ufw</span> allow from <span class="str">192.168.1.0/24</span> to any port <span class="num">80</span>
 <span class="cmd">ufw</span> allow from <span class="str">192.168.1.0/24</span> to any port <span class="num">443</span>
 
@@ -979,17 +1010,21 @@ chown -R www-data:www-data .
     <pre data-file="nginx config"><code><span class="cm"># Headers de seguridad</span>
 <span class="kw">add_header</span> X-Frame-Options <span class="str">"SAMEORIGIN"</span> always;
 <span class="kw">add_header</span> X-Content-Type-Options <span class="str">"nosniff"</span> always;
-<span class="kw">add_header</span> X-XSS-Protection <span class="str">"1; mode=block"</span> always;
+<span class="cm"># (X-XSS-Protection está obsoleto: no lo añadas)</span>
 <span class="kw">add_header</span> Referrer-Policy <span class="str">"strict-origin-when-cross-origin"</span> always;
 
 <span class="cm"># Ocultar versión de Nginx</span>
 <span class="kw">server_tokens</span> off;</code></pre>
+    <div class="callout callout-yellow">
+      <span class="callout-icon">⚠️</span>
+      <div><p><strong>Herencia de add_header:</strong> si un bloque <code>location</code> define su propio <code>add_header</code> (como el de caché), deja de heredar los <code>add_header</code> del <code>server</code>. Repite los headers de seguridad en ese <code>location</code> o ponlos en un archivo y usa <code>include</code>.</p></div>
+    </div>
 
     <h3>Desactivar SSH con password (opcional)</h3>
     <pre data-file="/etc/ssh/sshd_config"><code><span class="vr">PermitRootLogin</span> prohibit-password
 <span class="vr">PasswordAuthentication</span> no
 <span class="vr">PubkeyAuthentication</span> yes</code></pre>
-    <pre data-file="shell"><code><span class="cmd">systemctl</span> restart sshd</code></pre>
+    <pre data-file="shell"><code><span class="cmd">systemctl</span> restart ssh</code></pre>
 
     <div class="callout callout-red">
       <span class="callout-icon">🔒</span>
@@ -1124,5 +1159,68 @@ document.querySelectorAll('.sec, .card, .step').forEach(el => {
 });
 </script>
 
+<!-- i18n:start -->
+<script id="i18n-data" type="application/json">{"__title": "Guide: Host HTML websites on a Proxmox LXC", "__desc": "Complete guide to serving static sites from a lightweight Linux container on your local network with Nginx on Proxmox.", "Hostea tus webs HTML<br>en <span class=\"hl\">Proxmox LXC<\/span>": "Host your HTML sites<br>on a <span class=\"hl\">Proxmox LXC<\/span>", "Guía completa para servir sitios estáticos desde un contenedor Linux ligero en tu red local. Sin cloud, sin costes, rendimiento instantáneo.": "A complete guide to serving static sites from a lightweight Linux container on your local network. No cloud, no costs, instant performance.", "<span class=\"pill\"><b>Nginx<\/b> web server<\/span> <span class=\"pill\"><b>LXC<\/b> contenedor<\/span> <span class=\"pill\"><b>Proxmox<\/b> VE 8.x<\/span> <span class=\"pill\"><b>HTTP<\/b> / HTTPS local<\/span> <span class=\"pill\"><b>Multi-sitio<\/b><\/span>": "<span class=\"pill\"><b>Nginx<\/b> web server<\/span> <span class=\"pill\"><b>LXC<\/b> container<\/span> <span class=\"pill\"><b>Proxmox<\/b> VE 8.x<\/span> <span class=\"pill\"><b>HTTP<\/b> / local HTTPS<\/span> <span class=\"pill\"><b>Multi-site<\/b><\/span>", "<span class=\"nav-brand\">~/guía<\/span> <a href=\"#intro\">Intro<\/a> <a href=\"#requisitos\">Requisitos<\/a> <a href=\"#lxc\">Crear LXC<\/a> <a href=\"#nginx\">Instalar Nginx<\/a> <a href=\"#deploy\">Subir web<\/a> <a href=\"#vhosts\">Multi-sitio<\/a> <a href=\"#dominio\">Dominio local<\/a> <a href=\"#ssl\">HTTPS local<\/a> <a href=\"#autodeploy\">Auto-deploy<\/a> <a href=\"#seguridad\">Seguridad<\/a> <a href=\"#troubleshooting\">Problemas<\/a>": "<span class=\"nav-brand\">~/guide<\/span> <a href=\"#intro\">Intro<\/a> <a href=\"#requisitos\">Requirements<\/a> <a href=\"#lxc\">Create LXC<\/a> <a href=\"#nginx\">Install Nginx<\/a> <a href=\"#deploy\">Upload site<\/a> <a href=\"#vhosts\">Multi-site<\/a> <a href=\"#dominio\">Local domain<\/a> <a href=\"#ssl\">Local HTTPS<\/a> <a href=\"#autodeploy\">Auto-deploy<\/a> <a href=\"#seguridad\">Security<\/a> <a href=\"#troubleshooting\">Troubleshooting<\/a>", "01 · Introducción": "01 · Introduction", "¿Por qué hostear localmente en Proxmox?": "Why host locally on Proxmox?", "Si ya tienes un servidor Proxmox en casa, puedes servir webs estáticas (HTML/CSS/JS) desde un contenedor LXC usando apenas ~64 MB de RAM y ~1 GB de disco. Es perfecto para dashboards, documentación, guías, portafolios internos o cualquier sitio que no necesite salir a internet.": "If you already have a Proxmox server at home, you can serve static sites (HTML/CSS/JS) from an LXC container using barely ~64 MB of RAM and ~1 GB of disk. Perfect for dashboards, documentation, guides, internal portfolios or any site that doesn't need to reach the internet.", "Ultra ligero": "Ultra lightweight", "Un LXC con Nginx usa ~50-80 MB de RAM. Puedes tener decenas corriendo sin despeinarte.": "An LXC with Nginx uses ~50-80 MB of RAM. You can run dozens without breaking a sweat.", "Privado": "Private", "Todo queda en tu red local. Sin DNS público, sin exposición, sin riesgos innecesarios.": "Everything stays on your local network. No public DNS, no exposure, no unnecessary risk.", "Instantáneo": "Instant", "Latencia de red local (&lt;1ms). Las páginas cargan al instante desde cualquier dispositivo de tu casa.": "Local network latency (&lt;1ms). Pages load instantly from any device in your home.", "Sin límites": "No limits", "Sin cuotas de ancho de banda, sin builds por hora, sin restricciones de tamaño. Tu servidor, tus reglas.": "No bandwidth quotas, no builds per hour, no size restrictions. Your server, your rules.", "02 · Requisitos": "02 · Requirements", "Lo que necesitas": "What you need", "Componente": "Component", "Mínimo": "Minimum", "Recomendado": "Recommended", "Última 8.x o 9.x": "Latest 8.x or 9.x", "CPU (contenedor)": "CPU (container)", "Disco": "Disk", "Red": "Network", "Bridge + IP fija": "Bridge + static IP", "Debian 12/13 o Alpine": "Debian 12/13 or Alpine", "<strong>¿Alpine o Debian?<\/strong> Alpine es más ligero (~8 MB base), pero Debian es más familiar y tiene mejor soporte. Para un servidor web simple, ambos son perfectos. Esta guía usa Debian, pero incluye notas para Alpine.": "<strong>Alpine or Debian?<\/strong> Alpine is lighter (~8 MB base), but Debian is more familiar and better supported. For a simple web server both are perfect. This guide uses Debian, with notes for Alpine.", "03 · Contenedor": "03 · Container", "Crear el contenedor LXC": "Create the LXC container", "Vamos a crear un contenedor Debian 13 mínimo, no privilegiado y con arranque automático.": "We'll create a minimal Debian 13 container, unprivileged and with automatic start.", "Descargar la plantilla": "Download the template", "Desde la shell del nodo Proxmox (host):": "From the Proxmox node (host) shell:", "# Actualizar lista de plantillas": "# Update the template list", "# Buscar Debian 13": "# Look for Debian 13", "# Descargar": "# Download", "Crear el contenedor": "Create the container", "<strong>Nombres de plantilla:<\/strong> el nombre exacto (<code>debian-13-standard_13.1-2_amd64.tar.zst<\/code>) cambia con cada actualización de Debian. Usa el que te muestre <code>pveam available<\/code>. Las plantillas de Debian 13 requieren una versión de Proxmox VE que las soporte; si tu nodo no las ofrece, usa Debian 12.": "<strong>Template names:<\/strong> the exact name (<code>debian-13-standard_13.1-2_amd64.tar.zst<\/code>) changes with every Debian update. Use the one <code>pveam available<\/code> shows you. Debian 13 templates require a Proxmox VE version that supports them; if your node doesn't offer them, use Debian 12.", "<strong>IP fija:<\/strong> Cambia <code>192.168.1.200/24<\/code> y <code>gw=192.168.1.1<\/code> por valores de tu red. Si prefieres DHCP, usa <code>ip=dhcp<\/code> en su lugar (pero tendrás que buscar la IP luego).": "<strong>Static IP:<\/strong> Change <code>192.168.1.200/24<\/code> and <code>gw=192.168.1.1<\/code> to values for your network. If you prefer DHCP, use <code>ip=dhcp<\/code> instead (but you'll have to look up the IP later).", "Entrar y preparar el contenedor": "Enter and prepare the container", "# Entrar al contenedor": "# Enter the container", "# Actualizar paquetes": "# Update packages", "# Instalar utilidades básicas": "# Install basic utilities", "<strong>Con Alpine Linux<\/strong> (más ligero):": "<strong>With Alpine Linux<\/strong> (lighter):", "<code>pveam available --section system | grep alpine<\/code><br>Descarga la plantilla que aparezca con <code>pveam download local NOMBRE<\/code>. Luego usa <code>apk update &amp;&amp; apk add nginx<\/code> en vez de <code>apt<\/code>.": "<code>pveam available --section system | grep alpine<\/code><br>Download the template that shows up with <code>pveam download local NAME<\/code>. Then use <code>apk update &amp;&amp; apk add nginx<\/code> instead of <code>apt<\/code>.", "04 · Servidor web": "04 · Web server", "Instalar y configurar Nginx": "Install and configure Nginx", "Nginx es el servidor web perfecto para contenido estático: usa poca memoria, es extremadamente rápido y la configuración es sencilla.": "Nginx is the perfect web server for static content: it uses little memory, is extremely fast and is simple to configure.", "Instalar Nginx": "Install Nginx", "# Verificar que está corriendo": "# Check that it is running", "# Habilitar inicio automático": "# Enable start on boot", "Prueba que funciona abriendo <code>http://192.168.1.200<\/code> en tu navegador. Deberías ver la página por defecto de Nginx.": "Check that it works by opening <code>http://192.168.1.200<\/code> in your browser. You should see the default Nginx page.", "Estructura de directorios": "Directory structure", "# Config principal": "# Main config", "# Configs de sitios (todos)": "# Site configs (all)", "# Sitios activos (symlinks)": "# Active sites (symlinks)", "# Fragmentos reutilizables": "# Reusable snippets", "# Raíz web por defecto": "# Default web root", "Configurar el sitio principal": "Configure the main site", "Edita el archivo de configuración del sitio por defecto:": "Edit the default site's configuration file:", "# Caché de 7 días para archivos estáticos (sin \"immutable\": si no versionas los nombres, los cambios tardarían en verse)": "# 7-day cache for static files (no \"immutable\": if you don't version file names, changes would take long to show up)", "# Compresión gzip": "# gzip compression", "# Verificar sintaxis y recargar": "# Check syntax and reload", "05 · Desplegar": "05 · Deploy", "Subir tu web al servidor": "Upload your site to the server", "Tienes varias formas de mover tus archivos HTML/CSS/JS al contenedor. Aquí van de la más simple a la más pro.": "There are several ways to move your HTML/CSS/JS files into the container. Here they are from simplest to most advanced.", "Opción A: SCP (desde tu máquina local)": "Option A: SCP (from your local machine)", "La forma más directa. Desde la terminal de tu PC/Mac:": "The most direct way. From your PC/Mac terminal:", "# Copiar una carpeta entera": "# Copy a whole folder", "# Copiar un solo archivo": "# Copy a single file", "Opción B: rsync (mejor para actualizaciones)": "Option B: rsync (better for updates)", "Solo transfiere los archivos que han cambiado. Ideal para actualizaciones frecuentes:": "It only transfers the files that changed. Ideal for frequent updates:", "<strong>El flag <code>--delete<\/code><\/strong> elimina del servidor los archivos que ya no existen en tu carpeta local. Omítelo si no quieres ese comportamiento.": "<strong>The <code>--delete<\/code> flag<\/strong> removes from the server the files that no longer exist in your local folder. Omit it if you don't want that behavior.", "Opción C: Git (clonar directamente en el servidor)": "Option C: Git (clone directly on the server)", "# Clonar el repo directamente en la raíz web": "# Clone the repo directly into the web root", "# Para actualizar después": "# To update later", "Opción D: Descomprimir un ZIP": "Option D: Unzip a ZIP file", "# Si subiste un .zip con scp": "# If you uploaded a .zip with scp", "Verificar permisos": "Check permissions", "Después de subir archivos, asegúrate de que Nginx puede leerlos:": "After uploading files, make sure Nginx can read them:", "# Establecer propietario correcto": "# Set the correct owner", "# Permisos: directorios 755, archivos 644": "# Permissions: directories 755, files 644", "Ahora abre <code>http://192.168.1.200<\/code> y deberías ver tu web.": "Now open <code>http://192.168.1.200<\/code> and you should see your site.", "06 · Multi-sitio": "06 · Multi-site", "Hostear múltiples webs en el mismo contenedor": "Host several sites in the same container", "Nginx soporta virtual hosts, así que puedes servir varias webs desde un solo contenedor, cada una con su propia carpeta y dominio local.": "Nginx supports virtual hosts, so you can serve several sites from a single container, each with its own folder and local domain.", "Crear la estructura de carpetas": "Create the folder structure", "# Crear directorios para cada sitio": "# Create a directory for each site", "# Copiar archivos a cada uno": "# Copy files to each one", "# Permisos": "# Permissions", "Método 1: Por subdirectorios (más fácil)": "Method 1: By subdirectories (easiest)", "Sirve cada web desde una ruta diferente en la misma IP:": "Serve each site from a different path on the same IP:", "# Página principal": "# Home page", "# Guía OpenClaw en /openclaw": "# OpenClaw guide at /openclaw", "# Guía HA en /homeassistant": "# HA guide at /homeassistant", "# Portafolio en /portafolio": "# Portfolio at /portafolio", "Resultado: <code>http://192.168.1.200/openclaw/<\/code>, <code>http://192.168.1.200/homeassistant/<\/code>, etc.": "Result: <code>http://192.168.1.200/openclaw/<\/code>, <code>http://192.168.1.200/homeassistant/<\/code>, etc.", "Método 2: Por puertos diferentes": "Method 2: By different ports", "# Activar el sitio": "# Enable the site", "Resultado: <code>http://192.168.1.200:8081<\/code>": "Result: <code>http://192.168.1.200:8081<\/code>", "Método 3: Por dominio local (el más elegante)": "Method 3: By local domain (the most elegant)", "Lo vemos en la siguiente sección.": "We'll cover it in the next section.", "07 · DNS local": "07 · Local DNS", "Usar dominios locales personalizados": "Use custom local domains", "En vez de recordar IPs y puertos, puedes acceder a tus webs con nombres como <code>guias.lan<\/code> o <code>openclaw.lan<\/code>.": "Instead of remembering IPs and ports, you can reach your sites with names like <code>guias.lan<\/code> or <code>openclaw.lan<\/code>.", "<strong>Sufijo del dominio:<\/strong> evita <code>.local<\/code> (reservado para mDNS y suele dar problemas). <code>.lan<\/code> funciona en la práctica; el sufijo reservado oficialmente para redes domésticas es <code>home.arpa<\/code> (RFC 8375), por ejemplo <code>guias.home.arpa<\/code>.": "<strong>Domain suffix:<\/strong> avoid <code>.local<\/code> (reserved for mDNS and often causes problems). <code>.lan<\/code> works in practice; the suffix officially reserved for home networks is <code>home.arpa<\/code> (RFC 8375), e.g. <code>guias.home.arpa<\/code>.", "Opción rápida: archivo hosts": "Quick option: hosts file", "Edita el archivo hosts de cada dispositivo desde el que quieras acceder:": "Edit the hosts file on every device you want to access from:", "Sistema": "System", "Archivo": "File", "Android / iOS": "Android / iOS", "No se puede (necesitas DNS local)": "Not possible (you need local DNS)", "Añade estas líneas:": "Add these lines:", "Opción pro: Pi-hole / AdGuard Home como DNS local": "Pro option: Pi-hole / AdGuard Home as local DNS", "Si ya tienes Pi-hole o AdGuard Home, puedes crear registros DNS locales para toda tu red (incluido móviles) sin tocar archivos hosts:": "If you already run Pi-hole or AdGuard Home, you can create local DNS records for your whole network (including phones) without touching hosts files:", "Ve a <em>Local DNS → DNS Records<\/em>, añade <code>guias.lan → 192.168.1.200<\/code>.": "Go to <em>Local DNS → DNS Records<\/em>, add <code>guias.lan → 192.168.1.200<\/code>.", "Ve a <em>Filtros → Reescrituras DNS<\/em>, añade el dominio y la IP.": "Go to <em>Filters → DNS rewrites<\/em>, add the domain and the IP.", "Configurar virtual hosts en Nginx por dominio": "Configure Nginx virtual hosts by domain", "# Activar ambos sitios": "# Enable both sites", "# Verificar y recargar": "# Check and reload", "Ahora puedes acceder a <code>http://openclaw.lan<\/code> y <code>http://ha.lan<\/code> desde cualquier dispositivo de tu red.": "Now you can reach <code>http://openclaw.lan<\/code> and <code>http://ha.lan<\/code> from any device on your network.", "08 · HTTPS local": "08 · Local HTTPS", "Añadir HTTPS con certificados auto-firmados": "Add HTTPS with self-signed certificates", "Para redes locales no necesitas Let's Encrypt. Puedes generar certificados auto-firmados o usar <code>mkcert<\/code> para que tu navegador los acepte sin warnings.": "On local networks you don't need Let's Encrypt. You can generate self-signed certificates or use <code>mkcert<\/code> so your browser accepts them without warnings.", "Opción A: mkcert (recomendado, sin warnings)": "Option A: mkcert (recommended, no warnings)", "# Instalar mkcert": "# Install mkcert", "# Linux:": "# Linux:", "# Instalar CA raíz local (una sola vez)": "# Install the local root CA (once)", "# Generar certificado para tus dominios locales": "# Generate a certificate for your local domains", "# Salida: openclaw.lan+3.pem y openclaw.lan+3-key.pem": "# Output: openclaw.lan+3.pem and openclaw.lan+3-key.pem", "# Primero: crear el directorio de destino": "# First: create the destination directory", "# Subir los certificados al LXC": "# Upload the certificates to the LXC", "# Proteger la clave privada": "# Protect the private key", "<strong>Cada dispositivo necesita confiar en la CA:<\/strong> mkcert solo evita los avisos en los equipos donde se ha instalado su CA raíz (<code>mkcert -install<\/code>). Para otros PCs y móviles copia el archivo <code>rootCA.pem<\/code> (ruta con <code>mkcert -CAROOT<\/code>) e instálalo como certificado de confianza. No lo compartas fuera de tu red: quien tenga esa CA puede emitir certificados que tus dispositivos aceptarán.": "<strong>Every device must trust the CA:<\/strong> mkcert only avoids warnings on machines where its root CA has been installed (<code>mkcert -install<\/code>). For other PCs and phones, copy the <code>rootCA.pem<\/code> file (path via <code>mkcert -CAROOT<\/code>) and install it as a trusted certificate. Don't share it outside your network: whoever holds that CA can issue certificates your devices will accept.", "Opción B: Certificado auto-firmado (con warning del navegador)": "Option B: Self-signed certificate (with a browser warning)", "Configurar Nginx con HTTPS": "Configure Nginx with HTTPS", "09 · Automatización": "09 · Automation", "Auto-deploy desde Git": "Auto-deploy from Git", "Puedes hacer que el servidor se actualice automáticamente cuando hagas push a tu repo de GitHub, o simplemente usar un cron que haga pull periódicamente.": "You can make the server update automatically when you push to your GitHub repo, or simply use a cron job that pulls periodically.", "Método simple: cron + git pull": "Simple method: cron + git pull", "# Editar crontab": "# Edit the crontab", "# Añadir esta línea (pull cada 5 minutos)": "# Add this line (pull every 5 minutes)", "<strong>«dubious ownership»:<\/strong> si el repo pertenece a <code>www-data<\/code> (tras el <code>chown<\/code>) y el cron corre como <code>root<\/code>, git se niega a hacer pull. Ejecuta una vez <code>git config --global --add safe.directory /var/www/guia-openclaw<\/code>, o programa el cron del usuario <code>www-data<\/code> (<code>crontab -u www-data -e<\/code>).": "<strong>\"dubious ownership\":<\/strong> if the repo belongs to <code>www-data<\/code> (after the <code>chown<\/code>) and the cron runs as <code>root<\/code>, git refuses to pull. Run <code>git config --global --add safe.directory /var/www/guia-openclaw<\/code> once, or schedule the cron for the <code>www-data<\/code> user (<code>crontab -u www-data -e<\/code>).", "Método avanzado: webhook con GitHub": "Advanced method: GitHub webhook", "Instala un listener ligero que recibe webhooks de GitHub y ejecuta <code>git pull<\/code> automáticamente:": "Install a lightweight listener that receives GitHub webhooks and runs <code>git pull<\/code> automatically:", "<strong>Ojo con la red local:<\/strong> GitHub no puede alcanzar una IP privada como 192.168.1.200, así que este método solo funciona si expones el listener a internet (túnel, reverse proxy…), lo que contradice el enfoque 100% local. Si lo haces, protege el hook con un secreto de GitHub. Para un servidor solo-LAN, usa el cron.": "<strong>Mind the local network:<\/strong> GitHub cannot reach a private IP like 192.168.1.200, so this method only works if you expose the listener to the internet (tunnel, reverse proxy…), which defeats the 100% local approach. If you do, protect the hook with a GitHub secret. For a LAN-only server, use the cron method.", "# Crear config del webhook": "# Create the webhook config", "# Crear script de deploy": "# Create the deploy script", "# Arrancar el servicio (escucha en el puerto 9000 → /hooks/deploy-openclaw)": "# Start the service (listens on port 9000 → /hooks/deploy-openclaw)", "Método one-liner: script de deploy con rsync": "One-liner method: deploy script with rsync", "Crea un alias en tu máquina local para desplegar con un solo comando:": "Create an alias on your local machine to deploy with a single command:", "# Añadir alias": "# Add aliases", "Ahora solo ejecutas <code>deploy-openclaw<\/code> desde tu terminal y listo.": "Now just run <code>deploy-openclaw<\/code> from your terminal and you're done.", "10 · Seguridad": "10 · Security", "Securizar el servidor": "Secure the server", "Aunque es una web local, aplicar seguridad básica es buena práctica y te protege de dispositivos comprometidos en tu red.": "Even though it's a local site, basic security is good practice and protects you from compromised devices on your network.", "Firewall con UFW": "Firewall with UFW", "# Políticas por defecto": "# Default policies", "# Permitir SSH solo desde tu red": "# Allow SSH only from your network", "# Permitir HTTP y HTTPS desde tu red (abre igual los puertos extra, p. ej. 8081, si los usas)": "# Allow HTTP and HTTPS from your network (open extra ports too, e.g. 8081, if you use them)", "# Activar": "# Enable", "Headers de seguridad en Nginx": "Security headers in Nginx", "Añade esto dentro del bloque <code>server<\/code>:": "Add this inside the <code>server<\/code> block:", "# Headers de seguridad": "# Security headers", "# (X-XSS-Protection está obsoleto: no lo añadas)": "# (X-XSS-Protection is obsolete: don't add it)", "# Ocultar versión de Nginx": "# Hide the Nginx version", "<strong>Herencia de add_header:<\/strong> si un bloque <code>location<\/code> define su propio <code>add_header<\/code> (como el de caché), deja de heredar los <code>add_header<\/code> del <code>server<\/code>. Repite los headers de seguridad en ese <code>location<\/code> o ponlos en un archivo y usa <code>include<\/code>.": "<strong>add_header inheritance:<\/strong> if a <code>location<\/code> block defines its own <code>add_header<\/code> (like the cache one), it stops inheriting the <code>server<\/code>'s <code>add_header<\/code> directives. Repeat the security headers in that <code>location<\/code>, or put them in a file and use <code>include<\/code>.", "Desactivar SSH con password (opcional)": "Disable SSH password login (optional)", "<strong>Antes de desactivar password auth,<\/strong> asegúrate de haber copiado tu clave pública SSH al contenedor con <code>ssh-copy-id root@192.168.1.200<\/code>. Si no, perderás el acceso.": "<strong>Before disabling password auth,<\/strong> make sure you have copied your SSH public key to the container with <code>ssh-copy-id root@192.168.1.200<\/code>. Otherwise you will lose access.", "11 · Troubleshooting": "11 · Troubleshooting", "Solución de problemas": "Troubleshooting", "Problema": "Problem", "Causa": "Cause", "Solución": "Solution", "Permisos incorrectos": "Wrong permissions", "Ruta incorrecta o falta index.html": "Wrong path or missing index.html", "Verifica <code>root<\/code> en config de Nginx y que el archivo existe": "Check <code>root<\/code> in the Nginx config and that the file exists", "Página de Nginx por defecto": "Default Nginx page", "Config no activada o mal escrita": "Config not enabled or badly written", "Revisa symlink en sites-enabled, ejecuta <code>nginx -t<\/code>": "Check the symlink in sites-enabled, run <code>nginx -t<\/code>", "No se resuelve el dominio .lan": ".lan domain doesn't resolve", "DNS no configurado": "DNS not configured", "Revisa /etc/hosts o la config de Pi-hole / AdGuard": "Check /etc/hosts or your Pi-hole / AdGuard config", "Nginx no está corriendo": "Nginx is not running", "<code>systemctl start nginx<\/code>, revisa logs con <code>journalctl -u nginx<\/code>": "<code>systemctl start nginx<\/code>, check logs with <code>journalctl -u nginx<\/code>", "Puerto 443 sin SSL configurado": "Port 443 without SSL configured", "Verifica que los certificados existen y las rutas son correctas": "Check that the certificates exist and the paths are correct", "No puedo acceder desde otros dispositivos": "Can't reach it from other devices", "Firewall del contenedor": "Container firewall", "<code>ufw status<\/code> — asegura que puerto 80/443 está abierto": "<code>ufw status<\/code> — make sure ports 80/443 are open", "Comandos útiles de diagnóstico": "Useful diagnostic commands", "# Verificar config de Nginx": "# Check Nginx config", "# Ver logs de error": "# View error logs", "# Ver logs de acceso": "# View access logs", "# Ver qué puertos están abiertos": "# See which ports are open", "# Probar la web desde el propio contenedor": "# Test the site from the container itself", "# Ver uso de recursos del contenedor": "# View container resource usage", "Resumen": "Summary", "Cheatsheet de comandos": "Command cheatsheet", "Referencia rápida con los comandos más usados de toda la guía.": "Quick reference with the most used commands in the whole guide.", "# ─── PROXMOX (desde el host) ───────────────────": "# ─── PROXMOX (from the host) ───────────────────", "# Arrancar contenedor": "# Start container", "# Parar contenedor": "# Stop container", "# Snapshot antes de cambios": "# Snapshot before changes", "# ─── NGINX (dentro del LXC) ────────────────────": "# ─── NGINX (inside the LXC) ────────────────────", "# Verificar config": "# Check config", "# Recargar config": "# Reload config", "# Reiniciar Nginx": "# Restart Nginx", "# Ver errores": "# View errors", "# ─── DEPLOY (desde tu PC) ──────────────────────": "# ─── DEPLOY (from your PC) ─────────────────────", "# ─── PERMISOS (dentro del LXC) ─────────────────": "# ─── PERMISSIONS (inside the LXC) ──────────────", "Guía creada en Marzo 2026 · Hosting local con Proxmox + Nginx": "Guide created in March 2026 · Local hosting with Proxmox + Nginx", "Sin cloud · Sin costes · Sin límites · <a href=\"#intro\">↑ Volver arriba<\/a>": "No cloud · No costs · No limits · <a href=\"#intro\">↑ Back to top<\/a>"}</script>
+<script>window.__I18N={storeKey:"hosting-guide-lang"};</script>
+<script>
+(function(){
+  var BLOCK=/^(DIV|P|LI|UL|OL|TABLE|THEAD|TBODY|TFOOT|TR|TD|TH|H[1-6]|SECTION|PRE|BUTTON|SUMMARY|DETAILS|NAV|HEADER|FOOTER|ASIDE|MAIN|ARTICLE|FIGURE|FIGCAPTION|BLOCKQUOTE|DL|DT|DD|FORM|SELECT|OPTION|UL)$/;
+  var SKIP=/^(SCRIPT|STYLE|SVG|NOSCRIPT|TEMPLATE|TEXTAREA)$/;
+  function norm(s){return s.replace(/\s+/g,' ').trim();}
+  function hasBlock(el){var all=el.getElementsByTagName('*');for(var i=0;i<all.length;i++){if(BLOCK.test(all[i].tagName))return true;}return false;}
+  function collect(root){
+    var out=[];
+    (function walk(el,inPre){
+      if(SKIP.test(el.tagName)||el.hasAttribute&&el.hasAttribute('data-noi18n'))return;
+      var pre=inPre||el.tagName==='PRE';
+      if(!pre && el.textContent.trim() && !hasBlock(el) && el!==root){
+        out.push({el:el,key:norm(el.innerHTML),kind:'el'});return;
+      }
+      for(var n=el.firstChild;n;n=n.nextSibling){
+        if(n.nodeType===3){var k=norm(n.nodeValue);if(k)out.push({node:n,key:k,kind:pre?'pre':'text'});}
+        else if(n.nodeType===1)walk(n,pre);
+      }
+    })(root,false);
+    return out;
+  }
+  if(typeof module!=='undefined'&&module.exports){module.exports=collect;return;}
+  var cfg=window.__I18N||{};
+  var EN=JSON.parse(document.getElementById('i18n-data').textContent);
+  var KEY=cfg.storeKey||'guide-lang';
+  var items=null,titleEs=document.title;
+  var meta=document.querySelector('meta[name="description"]');var metaEs=meta?meta.getAttribute('content'):null;
+  function pick(){
+    var q=(location.search.match(/[?&]lang=(en|es)/)||[])[1];if(q)return q;
+    try{var s=localStorage.getItem(KEY);if(s==='en'||s==='es')return s;}catch(e){}
+    return /^es/i.test(navigator.language||'es')?'es':'en';
+  }
+  function apply(lang){
+    if(!items)items=collect(document.body).map(function(it){
+      if(it.el)it.es=it.el.innerHTML;else it.es=it.node.nodeValue;return it;});
+    items.forEach(function(it){
+      var en=EN[it.key];
+      if(lang==='en'&&en!==undefined){
+        if(it.el)it.el.innerHTML=en;
+        else{var m=it.es.match(/^(\s*)[\s\S]*?(\s*)$/);it.node.nodeValue=m[1]+en+m[2];}
+      }else{
+        if(it.el)it.el.innerHTML=it.es;else it.node.nodeValue=it.es;
+      }
+    });
+    document.documentElement.lang=lang;
+    document.title=(lang==='en'&&EN['__title'])?EN['__title']:titleEs;
+    if(meta&&metaEs!==null)meta.setAttribute('content',(lang==='en'&&EN['__desc'])?EN['__desc']:metaEs);
+    var bs=document.querySelectorAll('.i18n-sw button');
+    for(var i=0;i<bs.length;i++)bs[i].setAttribute('aria-pressed',bs[i].getAttribute('data-l')===lang?'true':'false');
+    try{localStorage.setItem(KEY,lang);}catch(e){}
+    try{var u=new URL(location.href);u.searchParams.set('lang',lang);history.replaceState(null,'',u);}catch(e){}
+  }
+  var sw=document.createElement('div');sw.className='i18n-sw';sw.setAttribute('role','group');sw.setAttribute('aria-label','Language / Idioma');
+  sw.innerHTML='<button type="button" data-l="es">ES</button><button type="button" data-l="en">EN</button>';
+  sw.addEventListener('click',function(e){var l=e.target.getAttribute&&e.target.getAttribute('data-l');if(l)apply(l);});
+  document.body.appendChild(sw);
+  apply(pick());
+})();
+</script>
+<!-- i18n:end -->
 </body>
 </html>
